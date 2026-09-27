@@ -4,7 +4,6 @@ import streamlit as st
 import plotly.express as px
 import matplotlib.pyplot as plt
 
-# Professional page configuration
 st.set_page_config(page_title="IPL Analytics Hub", page_icon="🏏", layout="wide")
 
 @st.cache_data
@@ -14,7 +13,6 @@ def load_data():
 
 df = load_data()
 
-# Navigation Sidebar
 st.sidebar.title("Navigation")
 menu_select = st.sidebar.radio("Go to:", [
     "Tournament Overview", 
@@ -125,7 +123,7 @@ elif menu_select == "Player Analytics":
 
 # --- 4. STRATEGIC INSIGHTS SECTION ---
 elif menu_select == "Strategic Insights":
-    st.title("📈 Strategic Deep-Dives")
+    st.title("Strategic Deep-Dives")
     st.caption("Advanced macroscopic analysis highlighting multi-season tactical evolutions.")
     
     st.subheader("Evolution of Toss Decisions Over Time")
