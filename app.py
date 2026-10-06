@@ -4,6 +4,11 @@ import streamlit as st
 import plotly.express as px
 import matplotlib.pyplot as plt
 
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
+
 st.set_page_config(page_title="IPL Analytics Hub", page_icon="🏏", layout="wide")
 
 @st.cache_data
@@ -13,12 +18,42 @@ def load_data():
 
 df = load_data()
 
+
+@st.cache_resource
+def train_model(df):
+    # 1. Create the binary target (1 if team1 won, 0 otherwise)
+    df['team1_win'] = (df['winner'] == df['team1']).astype(int)
+    
+    # 2. Define Features and Target
+    X = df[['team1', 'team2', 'toss_winner', 'toss_decision', 'venue']]
+    y = df['team1_win']
+    
+    # 3. Build the Pipeline
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ('encoder', OneHotEncoder(sparse_output=False, handle_unknown='ignore'), 
+             ['team1', 'team2', 'toss_winner', 'toss_decision', 'venue'])
+        ]
+    )
+    model = Pipeline(steps=[
+        ('preprocessor', preprocessor),
+        ('classifier', LogisticRegression(max_iter=1000))
+    ])
+    
+    # 4. Train and return the model
+    model.fit(X, y)
+    return model
+
+# Train it once and store it in memory
+ml_model = train_model(df)
+
 st.sidebar.title("Navigation")
 menu_select = st.sidebar.radio("Go to:", [
     "Tournament Overview", 
     "Head-to-Head Rivalry", 
     "Player Analytics", 
-    "Strategic Insights"
+    "Strategic Insights",
+    "Match Predictor"
 ])
 
 # --- 1. TOURNAMENT OVERVIEW SECTION ---
@@ -147,3 +182,52 @@ elif menu_select == "Strategic Insights":
     plt.legend(frameon=True, facecolor='#F9FAFB', edgecolor='none', fontsize=10)
     plt.tight_layout()
     st.pyplot(fig)
+
+# --- 5. MATCH PREDICTOR SECTION ---
+elif menu_select == "Match Predictor":
+    st.title(" AI Match Predictor")
+    st.caption("Simulate upcoming fixtures using a Logistic Regression model trained on historical IPL data.")
+    
+    all_teams = sorted(df['team1'].dropna().unique())
+    all_venues = sorted(df['venue'].dropna().unique())
+    
+
+    col1, col2 = st.columns(2)
+    with col1:
+        team1 = st.selectbox("Team 1", all_teams, index=0)
+    with col2:
+        team2 = st.selectbox("Team 2", all_teams, index=1)
+        
+    col3, col4 = st.columns(2)
+    with col3:
+        toss_winner = st.selectbox("Toss Winner", [team1, team2])
+    with col4:
+        toss_decision = st.selectbox("Toss Decision", ['bat', 'field'])
+        
+    venue = st.selectbox("Venue", all_venues)
+        
+    st.markdown("---")
+    
+    if st.button(" Predict Match Outcome", type="primary", use_container_width=True):
+        if team1 == team2:
+            st.error("Please select two different teams.")
+        else:
+            input_data = pd.DataFrame({
+                'team1': [team1],
+                'team2': [team2],
+                'toss_winner': [toss_winner],
+                'toss_decision': [toss_decision],
+                'venue': [venue]
+            })
+            
+            probs = ml_model.predict_proba(input_data)[0]
+            team2_prob = probs[0]
+            team1_prob = probs[1]
+            
+            st.subheader("Win Probability Analysis")
+            
+            st.write(f"**{team1}**: {team1_prob * 100:.1f}%")
+            st.progress(float(team1_prob))
+            
+            st.write(f"**{team2}**: {team2_prob * 100:.1f}%")
+            st.progress(float(team2_prob))
